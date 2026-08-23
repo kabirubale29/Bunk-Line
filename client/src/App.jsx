@@ -1066,6 +1066,7 @@ export default function App() {
             earliestUnmarkedDate={earliestUnmarkedDate}
             lowAttendanceAlerts={lowAttendanceAlerts}
             onMarkAttendance={handleMarkAttendance}
+            onUnmarkAttendance={handleDeleteHistoryRecord}
             onBulkMarkPresent={handleBulkMarkPresent}
             onUndoBulkMark={handleUndoBulkMark}
             onMarkHoliday={handleMarkHoliday}

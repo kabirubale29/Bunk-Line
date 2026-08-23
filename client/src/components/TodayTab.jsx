@@ -13,6 +13,7 @@ export default function TodayTab({
   earliestUnmarkedDate = null,
   lowAttendanceAlerts = [],
   onMarkAttendance,
+  onUnmarkAttendance,
   onBulkMarkPresent,
   onUndoBulkMark,
   onMarkHoliday,
@@ -208,15 +209,47 @@ export default function TodayTab({
     setActiveDateStr(toLocalDateStr(new Date()));
   };
 
-  // Submission handler
+  // Submission handler (toggles unmark if clicking same status again)
   const handleMark = (slot, status) => {
+    const targetSlotId = slot.isExtra ? null : (slot.override_id ? slot.original_slot_id : slot.id);
+    const targetOverrideId = slot.override_id || null;
+
+    const existingRec = records.find(r => 
+      r.date === activeDateStr && 
+      (targetSlotId ? r.slot_id === targetSlotId : r.override_id === targetOverrideId)
+    );
+
+    // If tapping the exact same status on an already marked slot -> UNCHECK / UNMARK IT!
+    if (existingRec && existingRec.status === status) {
+      if (onUnmarkAttendance) {
+        onUnmarkAttendance(existingRec.id);
+      }
+      setEditingSlotId(null);
+      return;
+    }
+
     onMarkAttendance({
       date: activeDateStr,
-      slot_id: slot.isExtra ? null : (slot.override_id ? slot.original_slot_id : slot.id),
-      override_id: slot.override_id || null,
+      slot_id: targetSlotId,
+      override_id: targetOverrideId,
       subject_id: slot.subject_id,
       status,
     });
+    setEditingSlotId(null);
+  };
+
+  const handleUnmark = (slot) => {
+    const targetSlotId = slot.isExtra ? null : (slot.override_id ? slot.original_slot_id : slot.id);
+    const targetOverrideId = slot.override_id || null;
+
+    const existingRec = records.find(r => 
+      r.date === activeDateStr && 
+      (targetSlotId ? r.slot_id === targetSlotId : r.override_id === targetOverrideId)
+    );
+
+    if (existingRec && onUnmarkAttendance) {
+      onUnmarkAttendance(existingRec.id);
+    }
     setEditingSlotId(null);
   };
 
@@ -741,12 +774,21 @@ export default function TodayTab({
                             </button>
 
                             {isEditing && (
-                              <button
-                                onClick={() => setEditingSlotId(null)}
-                                className="text-brand-textMuted hover:text-brand-text"
-                              >
-                                Cancel
-                              </button>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() => handleUnmark(slot)}
+                                  className="text-status-danger hover:underline flex items-center gap-1 font-bold"
+                                  title="Remove mark and set back to unmarked"
+                                >
+                                  <Undo2 size={11} /> Uncheck Slot
+                                </button>
+                                <button
+                                  onClick={() => setEditingSlotId(null)}
+                                  className="text-brand-textMuted hover:text-brand-text"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -769,20 +811,28 @@ export default function TodayTab({
                             </span>
                           </div>
 
-                          <div className="flex gap-2">
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => openNoteDialog(slot, record.note)}
-                              className="p-1.5 text-brand-textMuted hover:text-brand-primary hover:bg-brand-cardEl transition-colors rounded-lg"
+                              className="p-1.5 text-brand-textMuted hover:text-brand-primary hover:bg-brand-cardEl transition-colors rounded-lg flex items-center gap-1 text-[11px] font-semibold"
                               title="Add Note"
                             >
                               <MessageSquare size={13} />
                             </button>
                             <button
                               onClick={() => setEditingSlotId(slot.id)}
-                              className="p-1.5 text-brand-textMuted hover:text-brand-text hover:bg-brand-cardEl transition-colors rounded-lg"
-                              title="Edit Attendance"
+                              className="p-1.5 text-brand-textMuted hover:text-brand-text hover:bg-brand-cardEl transition-colors rounded-lg flex items-center gap-1 text-[11px] font-semibold"
+                              title="Edit Status"
                             >
                               <Edit2 size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleUnmark(slot)}
+                              className="px-2 py-1 text-brand-textMuted hover:text-status-danger hover:bg-status-danger/10 text-[10px] font-bold rounded-lg transition-colors border border-brand-border/60 flex items-center gap-1"
+                              title="Uncheck / Reset slot back to unmarked"
+                            >
+                              <Undo2 size={11} />
+                              <span>Unmark</span>
                             </button>
                           </div>
                         </div>
