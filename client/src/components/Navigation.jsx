@@ -1,0 +1,77 @@
+import React from 'react';
+import { Clock, ShieldAlert, BarChart2, Settings } from 'lucide-react';
+
+export default function Navigation({ activeTab, setActiveTab }) {
+  const tabs = [
+    { id: 'today', label: 'Today', icon: Clock },
+    { id: 'danger', label: 'Danger Zone', icon: ShieldAlert },
+    { id: 'stats', label: 'Stats', icon: BarChart2 },
+    { id: 'setup', label: 'Setup', icon: Settings },
+  ];
+
+  return (
+    <>
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-brand-card border-t border-brand-border z-30 pb-safe">
+        <div className="flex justify-around items-center h-16">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className="flex flex-col items-center justify-center w-full h-full py-1 text-xs font-semibold focus:outline-none transition-colors active:scale-95"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+                aria-label={tab.label}
+              >
+                <Icon
+                  size={22}
+                  className={`mb-1 transition-all ${
+                    isActive ? 'text-brand-primary scale-110' : 'text-brand-textMuted'
+                  }`}
+                />
+                <span className={isActive ? 'text-brand-primary' : 'text-brand-textMuted'}>
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden md:flex flex-col w-64 fixed top-0 bottom-0 left-0 bg-brand-card border-r border-brand-border py-8 px-4 z-30">
+        <div className="px-4 mb-10">
+          <h1 className="text-2xl font-black tracking-tight text-brand-primary">
+            Bunk Line
+          </h1>
+          <p className="text-xs text-brand-textMuted font-bold mt-1 uppercase tracking-widest">
+            Attendance Tracker
+          </p>
+        </div>
+
+        <nav className="flex-1 space-y-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl font-bold transition-all text-sm ${
+                  isActive
+                    ? 'bg-brand-primary text-brand-text shadow-lg shadow-brand-primary/10'
+                    : 'text-brand-textSec hover:bg-brand-cardEl hover:text-brand-text'
+                }`}
+              >
+                <Icon size={20} className={isActive ? 'text-brand-text' : 'text-brand-textMuted'} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </aside>
+    </>
+  );
+}

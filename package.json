@@ -1,0 +1,10 @@
+{
+  "name": "bunk-line",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm install && npm run build",
+    "test": "node client/src/utils/calculations.test.js"
+  }
+}
