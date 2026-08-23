@@ -42,13 +42,16 @@ export default function Navigation({ activeTab, setActiveTab }) {
 
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden md:flex flex-col w-64 fixed top-0 bottom-0 left-0 bg-brand-card border-r border-brand-border py-8 px-4 z-30">
-        <div className="px-4 mb-10">
-          <h1 className="text-2xl font-black tracking-tight text-brand-primary">
-            Bunk Line
-          </h1>
-          <p className="text-xs text-brand-textMuted font-bold mt-1 uppercase tracking-widest">
-            Attendance Tracker
-          </p>
+        <div className="px-4 mb-8 flex items-center gap-3">
+          <img src="/logo.png" alt="Bunk Line" className="w-10 h-10 object-contain shrink-0" />
+          <div>
+            <h1 className="text-xl font-black tracking-tight text-brand-primary">
+              Bunk Line
+            </h1>
+            <p className="text-[10px] text-brand-textMuted font-bold uppercase tracking-widest">
+              Attendance Tracker
+            </p>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-2">

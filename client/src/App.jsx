@@ -1007,9 +1007,12 @@ export default function App() {
 
       {/* Top Navbar Header (Mobile Only) */}
       <header className="md:hidden flex items-center justify-between h-14 border-b border-brand-border px-4 bg-brand-card sticky top-0 z-20 shadow-warm">
-        <h1 className="text-lg font-black tracking-tight text-brand-primary">
-          Bunk Line
-        </h1>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Bunk Line" className="w-8 h-8 object-contain shrink-0" />
+          <h1 className="text-lg font-black tracking-tight text-brand-primary">
+            Bunk Line
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           {!online && (
             <span className="w-2.5 h-2.5 rounded-full bg-status-warning" title="Offline" />

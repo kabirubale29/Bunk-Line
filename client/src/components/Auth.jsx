@@ -57,12 +57,13 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-brand-bg px-4 py-12">
       <div className="max-w-md w-full space-y-8 bg-brand-card p-8 rounded-2xl border border-brand-border shadow-xl">
-        <div className="text-center">
-          <h1 className="text-4xl font-extrabold tracking-tight text-brand-primary">
+        <div className="text-center flex flex-col items-center">
+          <img src="/logo.png" alt="Bunk Line Logo" className="h-20 w-auto object-contain mb-3 drop-shadow-md" />
+          <h1 className="text-4xl font-black tracking-tight text-brand-primary">
             Bunk Line
           </h1>
-          <p className="mt-2 text-sm text-brand-textSec">
-            Attendance Tracker
+          <p className="mt-1 text-sm font-semibold text-brand-textSec">
+            Track Today. Plan Smarter.
           </p>
         </div>
 
