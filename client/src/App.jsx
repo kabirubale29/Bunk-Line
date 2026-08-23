@@ -951,20 +951,24 @@ export default function App() {
       
       {/* PWA New Update Toast Banner */}
       {swUpdateAvailable && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92%] bg-brand-primary text-white p-3.5 rounded-2xl shadow-2xl border border-white/20 flex items-center justify-between gap-3 animate-bounce">
-          <div className="flex items-center gap-2.5 text-xs font-extrabold">
-            <RefreshCw size={16} className="shrink-0 animate-spin text-status-warning" />
-            <span>New update available! Tap to refresh.</span>
+        <div 
+          onClick={() => {
+            if (waitingWorker) {
+              waitingWorker.postMessage({ action: 'SKIP_WAITING' });
+            }
+            setTimeout(() => {
+              window.location.href = window.location.origin + window.location.pathname + '?v=' + Date.now();
+            }, 100);
+          }}
+          className="fixed top-3 left-3 right-3 md:left-1/2 md:-translate-x-1/2 md:max-w-md z-[99999] bg-brand-primary text-white p-3.5 rounded-2xl shadow-2xl border-2 border-white/40 flex items-center justify-between gap-2 cursor-pointer active:scale-[0.98] transition-all"
+        >
+          <div className="flex items-center gap-2.5 text-xs font-black min-w-0">
+            <RefreshCw size={18} className="shrink-0 animate-spin text-status-warning" />
+            <span className="truncate">New update available! Tap to refresh.</span>
           </div>
           <button
-            onClick={() => {
-              if (waitingWorker) {
-                waitingWorker.postMessage({ action: 'SKIP_WAITING' });
-              } else {
-                window.location.reload();
-              }
-            }}
-            className="px-3 py-1.5 bg-white text-brand-primary text-[10px] font-black uppercase tracking-wider rounded-xl hover:bg-opacity-95 transition-all shrink-0 shadow-md"
+            type="button"
+            className="px-3.5 py-1.5 bg-white text-brand-primary text-xs font-black rounded-xl hover:bg-opacity-95 transition-all shrink-0 shadow-lg uppercase tracking-wider"
           >
             Update Now
           </button>
