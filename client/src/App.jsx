@@ -348,12 +348,20 @@ export default function App() {
     let unmarkedCount = 0;
     let earliest = null;
 
+    const activeTerm = terms.find(t => t.id === settings.current_term_id);
+    const termStartDateStr = activeTerm ? activeTerm.start_date : null;
+
     const today = new Date();
-    // Look back 7 days
+    // Look back up to 7 days, but never before term start date
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
       const dateStr = toLocalDateStr(d);
+
+      // Skip dates before active term start_date
+      if (termStartDateStr && dateStr < termStartDateStr) {
+        continue;
+      }
 
       // Check if day is holiday
       const isDayHoliday = dayOverrides.some(o => o.date === dateStr && o.type === 'holiday');
