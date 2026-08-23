@@ -17,6 +17,17 @@ export default function Auth() {
     setErrorMsg('');
     setMessage('');
 
+    // Check environment variable allowed emails whitelist if configured
+    const allowedEmailsEnv = import.meta.env.VITE_ALLOWED_EMAILS;
+    if (allowedEmailsEnv) {
+      const allowedList = allowedEmailsEnv.split(',').map(item => item.trim().toLowerCase());
+      if (!allowedList.includes(email.trim().toLowerCase())) {
+        setErrorMsg('Access Restricted: This Bunk Line deployment is private. Your email is not authorized.');
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({

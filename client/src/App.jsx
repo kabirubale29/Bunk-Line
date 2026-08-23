@@ -87,9 +87,25 @@ export default function App() {
     };
   }, [userId]);
 
+  // Helper to validate email against allowed whitelist
+  const isEmailAllowed = (userEmail) => {
+    const allowedEmailsEnv = import.meta.env.VITE_ALLOWED_EMAILS;
+    if (!allowedEmailsEnv) return true;
+    const allowedList = allowedEmailsEnv.split(',').map(item => item.trim().toLowerCase());
+    return allowedList.includes((userEmail || '').trim().toLowerCase());
+  };
+
   // Auth Subscription
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && !isEmailAllowed(session.user.email)) {
+        alert('Access Denied: Your email is not authorized to access this private Bunk Line deployment.');
+        supabase.auth.signOut();
+        setSession(null);
+        setUserId(null);
+        setLoading(false);
+        return;
+      }
       setSession(session);
       if (session) {
         setUserId(session.user.id);
@@ -102,6 +118,14 @@ export default function App() {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session && !isEmailAllowed(session.user.email)) {
+        alert('Access Denied: Your email is not authorized to access this private Bunk Line deployment.');
+        supabase.auth.signOut();
+        setSession(null);
+        setUserId(null);
+        setLoading(false);
+        return;
+      }
       setSession(session);
       if (session) {
         setUserId(session.user.id);
