@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { LogIn, UserPlus, AlertCircle, Eye, EyeOff } from 'lucide-react';
 
+import LogoModal from './LogoModal';
+
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -10,6 +12,7 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [message, setMessage] = useState('');
+  const [showLogoModal, setShowLogoModal] = useState(false);
 
   const handleAuth = async (e) => {
     e.preventDefault();
@@ -56,9 +59,21 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-brand-bg px-4 py-12">
+      <LogoModal isOpen={showLogoModal} onClose={() => setShowLogoModal(false)} />
+
       <div className="max-w-md w-full space-y-8 bg-brand-card p-8 rounded-2xl border border-brand-border shadow-xl">
         <div className="text-center flex flex-col items-center">
-          <img src="/logo.png" alt="Bunk Line Logo" className="h-20 w-auto object-contain mb-3 drop-shadow-md" />
+          <button
+            type="button"
+            onClick={() => setShowLogoModal(true)}
+            className="group relative cursor-pointer focus:outline-none transition-transform hover:scale-105 active:scale-95"
+            title="Click to view logo full screen"
+          >
+            <img src="/logo.png" alt="Bunk Line Logo" className="h-20 w-auto object-contain mb-3 drop-shadow-md" />
+            <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[9px] font-bold text-brand-primary opacity-0 group-hover:opacity-100 transition-opacity bg-brand-cardEl px-2 py-0.5 rounded border border-brand-border shadow-sm">
+              View Logo
+            </span>
+          </button>
           <h1 className="text-4xl font-black tracking-tight text-brand-primary">
             Bunk Line
           </h1>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, ShieldAlert, BarChart2, Settings } from 'lucide-react';
 
-export default function Navigation({ activeTab, setActiveTab }) {
+export default function Navigation({ activeTab, setActiveTab, onOpenLogo }) {
   const tabs = [
     { id: 'today', label: 'Today', icon: Clock },
     { id: 'danger', label: 'Danger Zone', icon: ShieldAlert },
@@ -42,17 +42,21 @@ export default function Navigation({ activeTab, setActiveTab }) {
 
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden md:flex flex-col w-64 fixed top-0 bottom-0 left-0 bg-brand-card border-r border-brand-border py-8 px-4 z-30">
-        <div className="px-4 mb-8 flex items-center gap-3">
-          <img src="/logo.png" alt="Bunk Line" className="w-10 h-10 object-contain shrink-0" />
+        <button
+          onClick={onOpenLogo}
+          className="px-4 mb-8 flex items-center gap-3 text-left group cursor-pointer focus:outline-none"
+          title="Click to view logo full screen"
+        >
+          <img src="/logo.png" alt="Bunk Line" className="w-10 h-10 object-contain shrink-0 transition-transform group-hover:scale-110" />
           <div>
-            <h1 className="text-xl font-black tracking-tight text-brand-primary">
+            <h1 className="text-xl font-black tracking-tight text-brand-primary group-hover:underline">
               Bunk Line
             </h1>
             <p className="text-[10px] text-brand-textMuted font-bold uppercase tracking-widest">
               Attendance Tracker
             </p>
           </div>
-        </div>
+        </button>
 
         <nav className="flex-1 space-y-2">
           {tabs.map((tab) => {

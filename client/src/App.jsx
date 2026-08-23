@@ -9,6 +9,7 @@ import StatsTab from './components/StatsTab';
 import SetupTab from './components/SetupTab';
 import HistoryView from './components/HistoryView';
 import PastSemestersView from './components/PastSemestersView';
+import LogoModal from './components/LogoModal';
 
 import { 
   getCache, 
@@ -54,6 +55,7 @@ export default function App() {
   const [earliestUnmarkedDate, setEarliestUnmarkedDate] = useState(null);
   const [swUpdateAvailable, setSwUpdateAvailable] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState(null);
+  const [showLogoModal, setShowLogoModal] = useState(false);
 
   // Listen for Service Worker update available
   useEffect(() => {
@@ -945,6 +947,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-brand-bg md:pl-64 flex flex-col transition-colors pb-16 md:pb-0">
+      <LogoModal isOpen={showLogoModal} onClose={() => setShowLogoModal(false)} />
       
       {/* PWA New Update Toast Banner */}
       {swUpdateAvailable && (
@@ -1007,12 +1010,16 @@ export default function App() {
 
       {/* Top Navbar Header (Mobile Only) */}
       <header className="md:hidden flex items-center justify-between h-14 border-b border-brand-border px-4 bg-brand-card sticky top-0 z-20 shadow-warm">
-        <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowLogoModal(true)}
+          className="flex items-center gap-2 text-left focus:outline-none active:scale-95 transition-transform"
+          title="Click to view logo full screen"
+        >
           <img src="/logo.png" alt="Bunk Line" className="w-8 h-8 object-contain shrink-0" />
           <h1 className="text-lg font-black tracking-tight text-brand-primary">
             Bunk Line
           </h1>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           {!online && (
             <span className="w-2.5 h-2.5 rounded-full bg-status-warning" title="Offline" />
@@ -1119,7 +1126,7 @@ export default function App() {
       </main>
 
       {/* Navigation Layout */}
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} onOpenLogo={() => setShowLogoModal(true)} />
     </div>
   );
 }
