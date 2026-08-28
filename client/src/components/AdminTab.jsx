@@ -19,6 +19,14 @@ export default function AdminTab() {
     setLoading(true);
     setErrorMsg('');
     try {
+      // 1. Try RPC get_all_allowed_users
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_allowed_users');
+      if (!rpcErr && rpcData) {
+        setAllowedUsers(rpcData);
+        return;
+      }
+
+      // 2. Fallback to direct table query
       const { data, error } = await supabase
         .from('allowed_users')
         .select('*')
@@ -50,16 +58,23 @@ export default function AdminTab() {
     const formattedEmail = newEmail.trim().toLowerCase();
 
     try {
-      const { data, error } = await supabase
-        .from('allowed_users')
-        .insert([{
-          email: formattedEmail,
-          role: newRole,
-          note: newNote.trim() || null
-        }])
-        .select();
+      // Try RPC first
+      const { error: rpcErr } = await supabase.rpc('add_allowed_user', {
+        target_email: formattedEmail,
+        target_role: newRole,
+        target_note: newNote.trim() || null
+      });
 
-      if (error) throw error;
+      if (rpcErr) {
+        const { error } = await supabase
+          .from('allowed_users')
+          .insert([{
+            email: formattedEmail,
+            role: newRole,
+            note: newNote.trim() || null
+          }]);
+        if (error) throw error;
+      }
 
       setSuccessMsg(`Successfully granted access to ${formattedEmail}`);
       setNewEmail('');
@@ -82,12 +97,18 @@ export default function AdminTab() {
     }
 
     try {
-      const { error } = await supabase
-        .from('allowed_users')
-        .update({ role: nextRole })
-        .eq('id', userItem.id);
+      const { error: rpcErr } = await supabase.rpc('update_allowed_user_role', {
+        target_id: userItem.id,
+        target_role: nextRole
+      });
 
-      if (error) throw error;
+      if (rpcErr) {
+        const { error } = await supabase
+          .from('allowed_users')
+          .update({ role: nextRole })
+          .eq('id', userItem.id);
+        if (error) throw error;
+      }
 
       setSuccessMsg(`Updated ${userItem.email} to ${nextRole.toUpperCase()}`);
       fetchAllowedUsers();
@@ -104,12 +125,17 @@ export default function AdminTab() {
     }
 
     try {
-      const { error } = await supabase
-        .from('allowed_users')
-        .delete()
-        .eq('id', userItem.id);
+      const { error: rpcErr } = await supabase.rpc('delete_allowed_user', {
+        target_id: userItem.id
+      });
 
-      if (error) throw error;
+      if (rpcErr) {
+        const { error } = await supabase
+          .from('allowed_users')
+          .delete()
+          .eq('id', userItem.id);
+        if (error) throw error;
+      }
 
       setSuccessMsg(`Revoked access for ${userItem.email}`);
       fetchAllowedUsers();

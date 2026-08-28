@@ -78,40 +78,104 @@ begin
 end;
 $$;
 
--- 7. RLS Policies for allowed_users table:
-drop policy if exists "allowed_users: admin full control" on public.allowed_users;
+-- 7. SECURITY DEFINER RPCs for Admin Management (Bypasses RLS permission errors safely for admins)
+
+-- 7a. Get all allowed users for Admin
+create or replace function public.get_all_allowed_users()
+returns setof public.allowed_users
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Access Denied: Only Admins can view allowed users list.';
+  end if;
+  return query select * from public.allowed_users order by created_at desc;
+end;
+$$;
+
+-- 7b. Add allowed user
+create or replace function public.add_allowed_user(target_email text, target_role text, target_note text default null)
+returns public.allowed_users
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  new_row public.allowed_users;
+begin
+  if not public.is_admin() then
+    raise exception 'Access Denied: Only Admins can add allowed users.';
+  end if;
+
+  insert into public.allowed_users (email, role, note)
+  values (lower(trim(target_email)), coalesce(target_role, 'user'), target_note)
+  on conflict (email) 
+  do update set role = excluded.role, note = excluded.note
+  returning * into new_row;
+
+  return new_row;
+end;
+$$;
+
+-- 7c. Update user role
+create or replace function public.update_allowed_user_role(target_id uuid, target_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Access Denied: Only Admins can update user roles.';
+  end if;
+
+  update public.allowed_users
+  set role = target_role
+  where id = target_id;
+
+  return true;
+end;
+$$;
+
+-- 7d. Remove allowed user
+create or replace function public.delete_allowed_user(target_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    raise exception 'Access Denied: Only Admins can delete allowed users.';
+  end if;
+
+  delete from public.allowed_users
+  where id = target_id;
+
+  return true;
+end;
+$$;
+
+-- 8. Grant Table & Function Permissions
+grant select, insert, update, delete on public.allowed_users to authenticated;
+
+grant execute on function public.is_email_allowed(text) to anon, authenticated;
+grant execute on function public.is_admin() to authenticated;
+grant execute on function public.get_my_role() to authenticated;
+grant execute on function public.get_all_allowed_users() to authenticated;
+grant execute on function public.add_allowed_user(text, text, text) to authenticated;
+grant execute on function public.update_allowed_user_role(uuid, text) to authenticated;
+grant execute on function public.delete_allowed_user(uuid) to authenticated;
+
+-- 9. RLS Policies
 drop policy if exists "allowed_users: admin select" on public.allowed_users;
 drop policy if exists "allowed_users: admin insert" on public.allowed_users;
 drop policy if exists "allowed_users: admin update" on public.allowed_users;
 drop policy if exists "allowed_users: admin delete" on public.allowed_users;
 
--- Admin users have full SELECT, INSERT, UPDATE, DELETE permissions
-create policy "allowed_users: admin select"
-  on public.allowed_users
-  for select
-  to authenticated
-  using (public.is_admin());
-
-create policy "allowed_users: admin insert"
-  on public.allowed_users
-  for insert
-  to authenticated
-  with check (public.is_admin());
-
-create policy "allowed_users: admin update"
-  on public.allowed_users
-  for update
-  to authenticated
-  using (public.is_admin())
-  with check (public.is_admin());
-
-create policy "allowed_users: admin delete"
-  on public.allowed_users
-  for delete
-  to authenticated
-  using (public.is_admin());
-
--- Grant execution to authenticated & anon roles
-grant execute on function public.is_email_allowed(text) to anon, authenticated;
-grant execute on function public.is_admin() to authenticated;
-grant execute on function public.get_my_role() to authenticated;
+create policy "allowed_users: admin select" on public.allowed_users for select to authenticated using (public.is_admin());
+create policy "allowed_users: admin insert" on public.allowed_users for insert to authenticated with check (public.is_admin());
+create policy "allowed_users: admin update" on public.allowed_users for update to authenticated using (public.is_admin()) with check (public.is_admin());
+create policy "allowed_users: admin delete" on public.allowed_users for delete to authenticated using (public.is_admin());
