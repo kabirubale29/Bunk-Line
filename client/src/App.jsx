@@ -1037,6 +1037,13 @@ export default function App() {
     setIsAdmin(false);
   };
 
+  // Automatically open Admin Tab for Admin accounts upon login
+  useEffect(() => {
+    if (isAdmin && activeTab === 'today') {
+      setActiveTab('admin');
+    }
+  }, [isAdmin]);
+
   // Loading indicator screen
   if (loading) {
     return (
@@ -1052,8 +1059,8 @@ export default function App() {
     return <Auth />;
   }
 
-  // Onboarding setup wizard check
-  const needsSetup = !settings.current_term_id || subjects.length === 0;
+  // Onboarding setup wizard check (bypassed for Admin accounts)
+  const needsSetup = (!settings.current_term_id || subjects.length === 0) && !isAdmin;
   if (needsSetup && activeTab !== 'past-semesters') {
     return <SetupWizard onComplete={handleWizardComplete} />;
   }
