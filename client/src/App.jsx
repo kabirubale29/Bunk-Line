@@ -11,6 +11,8 @@ import AdminTab from './components/AdminTab';
 import HistoryView from './components/HistoryView';
 import PastSemestersView from './components/PastSemestersView';
 import LogoModal from './components/LogoModal';
+import AccountSwitcherModal from './components/AccountSwitcherModal';
+import { saveAccountSession, removeSavedAccount, clearAllSavedAccounts } from './utils/accountManager';
 
 import { 
   getCache, 
@@ -21,7 +23,7 @@ import {
   processSyncQueue 
 } from './db';
 import { calculateAttendance } from './utils/calculations';
-import { LogOut, Sun, Moon, RefreshCw } from 'lucide-react';
+import { LogOut, Sun, Moon, RefreshCw, User, ChevronDown } from 'lucide-react';
 
 // Format a Date as local YYYY-MM-DD (avoids UTC offset shifting the date in UTC+ timezones like IST)
 const toLocalDateStr = (d) => {
@@ -57,6 +59,7 @@ export default function App() {
   const [swUpdateAvailable, setSwUpdateAvailable] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [showLogoModal, setShowLogoModal] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
 
   // Listen for Service Worker update available
   useEffect(() => {
@@ -148,6 +151,7 @@ export default function App() {
           setLoading(false);
           return;
         }
+        saveAccountSession(session);
         setSession(session);
         setUserId(session.user.id);
         loadCachedData().then(() => {
@@ -169,6 +173,7 @@ export default function App() {
           setLoading(false);
           return;
         }
+        saveAccountSession(session);
         setSession(session);
         setUserId(session.user.id);
         fetchData(session.user.id);
@@ -966,12 +971,70 @@ export default function App() {
     processSyncQueue(supabase, userId);
   };
 
-  // Sign out user
-  const handleSignOut = async () => {
-    if (confirm('Are you sure you want to sign out?')) {
-      await supabase.auth.signOut();
-      clearLocalState();
+  // Multi-account switcher handlers
+  const handleSwitchAccount = async (targetAccount) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: targetAccount.accessToken,
+        refresh_token: targetAccount.refreshToken,
+      });
+      if (error) throw error;
+      if (data?.session) {
+        saveAccountSession(data.session);
+        setSession(data.session);
+        setUserId(data.session.user.id);
+        await verifyAllowedUserAndRole(data.session.user.email);
+        await fetchData(data.session.user.id);
+      }
+    } catch (err) {
+      console.error('Error switching session:', err);
+      alert('Session expired for that account. Please log in again.');
+      removeSavedAccount(targetAccount.email);
+    } finally {
+      setLoading(false);
+      setShowAccountSwitcher(false);
     }
+  };
+
+  const handleAddNewAccount = async (newEmail, newPassword) => {
+    const allowed = await verifyAllowedUserAndRole(newEmail);
+    if (!allowed) {
+      throw new Error('Access Restricted: That email is not on the allowed access list.');
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: newEmail,
+      password: newPassword,
+    });
+    if (error) throw error;
+    if (data?.session) {
+      saveAccountSession(data.session);
+      setSession(data.session);
+      setUserId(data.session.user.id);
+      await verifyAllowedUserAndRole(data.session.user.email);
+      await fetchData(data.session.user.id);
+      setShowAccountSwitcher(false);
+    }
+  };
+
+  const handleSignOutCurrent = async () => {
+    if (session?.user?.email) {
+      removeSavedAccount(session.user.email);
+    }
+    await supabase.auth.signOut();
+    clearLocalState();
+    setSession(null);
+    setUserId(null);
+    setIsAdmin(false);
+  };
+
+  const handleSignOutAll = async () => {
+    clearAllSavedAccounts();
+    await supabase.auth.signOut();
+    clearLocalState();
+    setSession(null);
+    setUserId(null);
+    setIsAdmin(false);
   };
 
   // Loading indicator screen
@@ -998,6 +1061,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-brand-bg md:pl-64 flex flex-col transition-colors pb-16 md:pb-0">
       <LogoModal isOpen={showLogoModal} onClose={() => setShowLogoModal(false)} />
+      <AccountSwitcherModal
+        isOpen={showAccountSwitcher}
+        onClose={() => setShowAccountSwitcher(false)}
+        currentEmail={session?.user?.email}
+        onSwitchAccount={handleSwitchAccount}
+        onAddNewAccount={handleAddNewAccount}
+        onSignOutCurrent={handleSignOutCurrent}
+        onSignOutAll={handleSignOutAll}
+      />
       
       {/* PWA New Update Toast Banner */}
       {swUpdateAvailable && (
@@ -1053,11 +1125,13 @@ export default function App() {
           </button>
 
           <button
-            onClick={handleSignOut}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-brand-textMuted hover:text-status-danger font-extrabold hover:bg-brand-cardEl rounded-lg transition-all"
+            onClick={() => setShowAccountSwitcher(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-cardEl hover:bg-brand-border text-brand-text font-extrabold border border-brand-border text-xs transition-all active:scale-95"
+            title="Switch Account / Manage Logins"
           >
-            <LogOut size={14} />
-            <span>Sign Out</span>
+            <User size={14} className="text-brand-primary shrink-0" />
+            <span className="max-w-[120px] truncate">{session?.user?.email?.split('@')[0]}</span>
+            <ChevronDown size={12} className="text-brand-textMuted shrink-0" />
           </button>
         </div>
       </header>
@@ -1086,10 +1160,13 @@ export default function App() {
             {settings.theme === 'dark' ? <Sun size={16} className="text-status-warning" /> : <Moon size={16} className="text-brand-primary" />}
           </button>
           <button
-            onClick={handleSignOut}
-            className="p-1.5 text-brand-textMuted hover:text-status-danger transition-colors"
+            onClick={() => setShowAccountSwitcher(true)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand-cardEl hover:bg-brand-border text-brand-text font-extrabold border border-brand-border text-xs transition-all active:scale-95"
+            title="Switch Account"
           >
-            <LogOut size={16} />
+            <User size={15} className="text-brand-primary shrink-0" />
+            <span className="max-w-[80px] truncate text-[11px]">{session?.user?.email?.split('@')[0]}</span>
+            <ChevronDown size={12} className="text-brand-textMuted shrink-0" />
           </button>
         </div>
       </header>
