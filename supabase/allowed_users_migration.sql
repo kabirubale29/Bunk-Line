@@ -11,11 +11,11 @@ create table if not exists public.allowed_users (
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- 2. Seed existing allowed emails (Migrating preserved emails)
+-- 2. Seed existing allowed emails
 insert into public.allowed_users (email, role, note)
 values 
-  ('kabirubale0358@gmail.com', 'admin', 'Primary Owner & Admin'),
-  ('ubalekabir29@gmail.com', 'admin', 'Owner Admin Account'),
+  ('ubalekabir29@gmail.com', 'admin', 'Primary Admin Account'),
+  ('kabirubale0358@gmail.com', 'user', 'Attendance Account'),
   ('nehasangewar14@gmail.com', 'user', 'Whitelisted User')
 on conflict (email) 
 do update set role = excluded.role, note = excluded.note;
