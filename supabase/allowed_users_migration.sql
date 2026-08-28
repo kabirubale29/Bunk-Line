@@ -15,6 +15,7 @@ create table if not exists public.allowed_users (
 insert into public.allowed_users (email, role, note)
 values 
   ('kabirubale0358@gmail.com', 'admin', 'Primary Owner & Admin'),
+  ('ubalekabir29@gmail.com', 'admin', 'Owner Admin Account'),
   ('nehasangewar14@gmail.com', 'user', 'Whitelisted User')
 on conflict (email) 
 do update set role = excluded.role, note = excluded.note;

@@ -122,13 +122,14 @@ export default function App() {
 
     // Fallback to environment variable allowed emails whitelist if configured
     const allowedEmailsEnv = import.meta.env.VITE_ALLOWED_EMAILS;
+    const adminEmails = ['kabirubale0358@gmail.com', 'ubalekabir29@gmail.com'];
     if (!allowedEmailsEnv) {
-      if (cleanEmail === 'kabirubale0358@gmail.com') setIsAdmin(true);
+      if (adminEmails.includes(cleanEmail)) setIsAdmin(true);
       return true;
     }
     const allowedList = allowedEmailsEnv.split(',').map(item => item.trim().toLowerCase());
     const isEnvAllowed = allowedList.includes(cleanEmail);
-    if (isEnvAllowed && cleanEmail === 'kabirubale0358@gmail.com') {
+    if (isEnvAllowed && adminEmails.includes(cleanEmail)) {
       setIsAdmin(true);
     }
     return isEnvAllowed;
