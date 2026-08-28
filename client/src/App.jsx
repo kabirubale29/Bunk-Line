@@ -974,6 +974,7 @@ export default function App() {
   // Multi-account switcher handlers
   const handleSwitchAccount = async (targetAccount) => {
     setLoading(true);
+    clearLocalState();
     try {
       const { data, error } = await supabase.auth.setSession({
         access_token: targetAccount.accessToken,
@@ -985,6 +986,11 @@ export default function App() {
         setSession(data.session);
         setUserId(data.session.user.id);
         await verifyAllowedUserAndRole(data.session.user.email);
+        if (data.session.user.email === 'ubalekabir29@gmail.com') {
+          setActiveTab('admin');
+        } else {
+          setActiveTab('today');
+        }
         await fetchData(data.session.user.id);
       }
     } catch (err) {
@@ -1002,6 +1008,7 @@ export default function App() {
     if (!allowed) {
       throw new Error('Access Restricted: That email is not on the allowed access list.');
     }
+    clearLocalState();
     const { data, error } = await supabase.auth.signInWithPassword({
       email: newEmail,
       password: newPassword,
@@ -1012,6 +1019,11 @@ export default function App() {
       setSession(data.session);
       setUserId(data.session.user.id);
       await verifyAllowedUserAndRole(data.session.user.email);
+      if (data.session.user.email === 'ubalekabir29@gmail.com') {
+        setActiveTab('admin');
+      } else {
+        setActiveTab('today');
+      }
       await fetchData(data.session.user.id);
       setShowAccountSwitcher(false);
     }
@@ -1269,7 +1281,7 @@ export default function App() {
       </main>
 
       {/* Navigation Layout */}
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} onOpenLogo={() => setShowLogoModal(true)} isAdmin={isAdmin} />
+      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} onOpenLogo={() => setShowLogoModal(true)} isAdmin={isAdmin} currentEmail={session?.user?.email} />
     </div>
   );
 }

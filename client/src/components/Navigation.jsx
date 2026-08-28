@@ -1,17 +1,17 @@
 import React from 'react';
 import { Clock, ShieldAlert, BarChart2, Settings, ShieldCheck } from 'lucide-react';
 
-export default function Navigation({ activeTab, setActiveTab, onOpenLogo, isAdmin = false }) {
-  const tabs = [
-    { id: 'today', label: 'Today', icon: Clock },
-    { id: 'danger', label: 'Danger Zone', icon: ShieldAlert },
-    { id: 'stats', label: 'Stats', icon: BarChart2 },
-    { id: 'setup', label: 'Setup', icon: Settings },
-  ];
+export default function Navigation({ activeTab, setActiveTab, onOpenLogo, isAdmin = false, currentEmail = '' }) {
+  const isDedicatedAdmin = (currentEmail || '').trim().toLowerCase() === 'ubalekabir29@gmail.com';
 
-  if (isAdmin) {
-    tabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheck });
-  }
+  const tabs = isDedicatedAdmin
+    ? [{ id: 'admin', label: 'Admin', icon: ShieldCheck }]
+    : [
+        { id: 'today', label: 'Today', icon: Clock },
+        { id: 'danger', label: 'Danger Zone', icon: ShieldAlert },
+        { id: 'stats', label: 'Stats', icon: BarChart2 },
+        { id: 'setup', label: 'Setup', icon: Settings },
+      ];
 
   return (
     <>
