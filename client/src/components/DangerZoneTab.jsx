@@ -262,20 +262,24 @@ export default function DangerZoneTab({
                 <div className="grid grid-cols-4 gap-2 text-center my-1">
                   <div className="bg-brand-cardEl/70 p-2.5 rounded-xl border border-brand-border/50">
                     <div className="text-[9px] font-extrabold text-brand-textMuted uppercase tracking-wider">Total Held</div>
-                    <div className="font-black text-sm text-brand-text mt-0.5">{displayCalc.totalHeld}</div>
+                    <div className="font-black text-sm text-brand-text mt-0.5">{displayCalc.totalHeld ?? displayCalc.totalCount ?? 0}</div>
                   </div>
                   <div className="bg-brand-cardEl/70 p-2.5 rounded-xl border border-brand-border/50">
                     <div className="text-[9px] font-extrabold text-status-safe uppercase tracking-wider">Attended</div>
-                    <div className="font-black text-sm text-status-safe mt-0.5">{displayCalc.presentCount}</div>
+                    <div className="font-black text-sm text-status-safe mt-0.5">{displayCalc.presentCount ?? 0}</div>
                   </div>
                   <div className="bg-brand-cardEl/70 p-2.5 rounded-xl border border-brand-border/50">
                     <div className="text-[9px] font-extrabold text-status-danger uppercase tracking-wider">Bunked</div>
-                    <div className="font-black text-sm text-status-danger mt-0.5">{displayCalc.absentCount}</div>
+                    <div className="font-black text-sm text-status-danger mt-0.5">{displayCalc.absentCount ?? 0}</div>
                   </div>
                   <div className="bg-brand-cardEl/70 p-2.5 rounded-xl border border-brand-border/50">
                     <div className="text-[9px] font-extrabold text-brand-primary uppercase tracking-wider">Bunk Margin</div>
                     <div className="font-black text-xs text-brand-text mt-1">
-                      {displayCalc.safeBunks > 0 ? `+${displayCalc.safeBunks} bunks` : displayCalc.mustAttend > 0 ? `-${displayCalc.mustAttend} attend` : 'On target'}
+                      {(displayCalc.safeBunks ?? displayCalc.safeToSkip) > 0 
+                        ? `+${displayCalc.safeBunks ?? displayCalc.safeToSkip} bunks` 
+                        : displayCalc.mustAttend > 0 
+                        ? `-${displayCalc.mustAttend} attend` 
+                        : 'On target'}
                     </div>
                   </div>
                 </div>

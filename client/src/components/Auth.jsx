@@ -20,7 +20,19 @@ export default function Auth() {
     setErrorMsg('');
     setMessage('');
 
-    // Check environment variable allowed emails whitelist if configured
+    // Check Supabase allowed_users RPC first
+    try {
+      const { data: isAllowed, error: rpcErr } = await supabase.rpc('is_email_allowed', { check_email: email.trim() });
+      if (!rpcErr && isAllowed === false) {
+        setErrorMsg('Access Restricted: This Bunk Line deployment is private. Your email is not authorized.');
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('RPC check failed, falling back:', e);
+    }
+
+    // Fallback to environment variable allowed emails whitelist if configured
     const allowedEmailsEnv = import.meta.env.VITE_ALLOWED_EMAILS;
     if (allowedEmailsEnv) {
       const allowedList = allowedEmailsEnv.split(',').map(item => item.trim().toLowerCase());

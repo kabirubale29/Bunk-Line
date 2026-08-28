@@ -1,13 +1,17 @@
 import React from 'react';
-import { Clock, ShieldAlert, BarChart2, Settings } from 'lucide-react';
+import { Clock, ShieldAlert, BarChart2, Settings, ShieldCheck } from 'lucide-react';
 
-export default function Navigation({ activeTab, setActiveTab, onOpenLogo }) {
+export default function Navigation({ activeTab, setActiveTab, onOpenLogo, isAdmin = false }) {
   const tabs = [
     { id: 'today', label: 'Today', icon: Clock },
     { id: 'danger', label: 'Danger Zone', icon: ShieldAlert },
     { id: 'stats', label: 'Stats', icon: BarChart2 },
     { id: 'setup', label: 'Setup', icon: Settings },
   ];
+
+  if (isAdmin) {
+    tabs.push({ id: 'admin', label: 'Admin', icon: ShieldCheck });
+  }
 
   return (
     <>

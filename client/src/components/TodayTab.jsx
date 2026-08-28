@@ -517,10 +517,22 @@ export default function TodayTab({
           <ChevronLeft size={20} />
         </button>
 
-        <div className="text-center">
-          <h3 className="text-lg font-black text-brand-text">{weekdayName}</h3>
-          <p className="text-xs text-brand-textMuted font-bold uppercase tracking-wider mt-0.5">
-            {dateFormatted}
+        <div className="relative text-center group cursor-pointer px-3 py-1.5 rounded-xl hover:bg-brand-cardEl transition-all">
+          <input
+            type="date"
+            value={activeDateStr}
+            onChange={(e) => {
+              if (e.target.value) setActiveDateStr(e.target.value);
+            }}
+            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+            title="Click to pick any date from calendar"
+          />
+          <h3 className="text-lg font-black text-brand-text flex items-center justify-center gap-1.5 group-hover:text-brand-primary transition-colors">
+            <span>{weekdayName}</span>
+            <Calendar size={16} className="text-brand-primary opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+          </h3>
+          <p className="text-xs text-brand-textMuted font-bold uppercase tracking-wider mt-0.5 group-hover:text-brand-primary transition-colors">
+            {dateFormatted} &middot; <span className="underline decoration-brand-primary/40">Pick Date 📅</span>
           </p>
         </div>
 

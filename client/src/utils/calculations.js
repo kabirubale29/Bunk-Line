@@ -76,9 +76,11 @@ export function calculateAttendance({
     presentCount: totalPresent,
     absentCount: totalAbsent,
     totalCount: totalHeld,
+    totalHeld: totalHeld,
     status,
     verdict,
     safeToSkip,
+    safeBunks: safeToSkip,
     mustAttend
   };
 }

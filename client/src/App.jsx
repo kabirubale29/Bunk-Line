@@ -7,6 +7,7 @@ import TodayTab from './components/TodayTab';
 import DangerZoneTab from './components/DangerZoneTab';
 import StatsTab from './components/StatsTab';
 import SetupTab from './components/SetupTab';
+import AdminTab from './components/AdminTab';
 import HistoryView from './components/HistoryView';
 import PastSemestersView from './components/PastSemestersView';
 import LogoModal from './components/LogoModal';
@@ -89,27 +90,64 @@ export default function App() {
     };
   }, [userId]);
 
-  // Helper to validate email against allowed whitelist
-  const isEmailAllowed = (userEmail) => {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Helper to validate email against Supabase allowed_users table with env fallback
+  const verifyAllowedUserAndRole = async (userEmail) => {
+    if (!userEmail) return false;
+    const cleanEmail = userEmail.trim().toLowerCase();
+
+    try {
+      const { data: isAllowed, error: rpcErr } = await supabase.rpc('is_email_allowed', { check_email: cleanEmail });
+      if (!rpcErr && typeof isAllowed === 'boolean') {
+        if (!isAllowed) return false;
+
+        // Check if admin role
+        const { data: myRole, error: roleErr } = await supabase.rpc('get_my_role');
+        if (!roleErr && myRole === 'admin') {
+          setIsAdmin(true);
+        } else {
+          const { data: userRow } = await supabase
+            .from('allowed_users')
+            .select('role')
+            .eq('email', cleanEmail)
+            .maybeSingle();
+          if (userRow?.role === 'admin') setIsAdmin(true);
+        }
+        return true;
+      }
+    } catch (err) {
+      console.warn('Supabase allowed_users check failed, falling back:', err);
+    }
+
+    // Fallback to environment variable allowed emails whitelist if configured
     const allowedEmailsEnv = import.meta.env.VITE_ALLOWED_EMAILS;
-    if (!allowedEmailsEnv) return true;
+    if (!allowedEmailsEnv) {
+      if (cleanEmail === 'kabirubale0358@gmail.com') setIsAdmin(true);
+      return true;
+    }
     const allowedList = allowedEmailsEnv.split(',').map(item => item.trim().toLowerCase());
-    return allowedList.includes((userEmail || '').trim().toLowerCase());
+    const isEnvAllowed = allowedList.includes(cleanEmail);
+    if (isEnvAllowed && cleanEmail === 'kabirubale0358@gmail.com') {
+      setIsAdmin(true);
+    }
+    return isEnvAllowed;
   };
 
   // Auth Subscription
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && !isEmailAllowed(session.user.email)) {
-        alert('Access Denied: Your email is not authorized to access this private Bunk Line deployment.');
-        supabase.auth.signOut();
-        setSession(null);
-        setUserId(null);
-        setLoading(false);
-        return;
-      }
-      setSession(session);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
+        const allowed = await verifyAllowedUserAndRole(session.user.email);
+        if (!allowed) {
+          alert('Access Denied: Your email is not authorized to access this private Bunk Line deployment.');
+          supabase.auth.signOut();
+          setSession(null);
+          setUserId(null);
+          setLoading(false);
+          return;
+        }
+        setSession(session);
         setUserId(session.user.id);
         loadCachedData().then(() => {
           fetchData(session.user.id);
@@ -119,21 +157,24 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session && !isEmailAllowed(session.user.email)) {
-        alert('Access Denied: Your email is not authorized to access this private Bunk Line deployment.');
-        supabase.auth.signOut();
-        setSession(null);
-        setUserId(null);
-        setLoading(false);
-        return;
-      }
-      setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
+        const allowed = await verifyAllowedUserAndRole(session.user.email);
+        if (!allowed) {
+          alert('Access Denied: Your email is not authorized to access this private Bunk Line deployment.');
+          supabase.auth.signOut();
+          setSession(null);
+          setUserId(null);
+          setLoading(false);
+          return;
+        }
+        setSession(session);
         setUserId(session.user.id);
         fetchData(session.user.id);
       } else {
+        setSession(null);
         setUserId(null);
+        setIsAdmin(false);
         clearLocalState();
         setLoading(false);
       }
@@ -1136,10 +1177,14 @@ export default function App() {
             onBack={() => setActiveTab('setup')}
           />
         )}
+
+        {activeTab === 'admin' && isAdmin && (
+          <AdminTab />
+        )}
       </main>
 
       {/* Navigation Layout */}
-      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} onOpenLogo={() => setShowLogoModal(true)} />
+      <Navigation activeTab={activeTab} setActiveTab={setActiveTab} onOpenLogo={() => setShowLogoModal(true)} isAdmin={isAdmin} />
     </div>
   );
 }
