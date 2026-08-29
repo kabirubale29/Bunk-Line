@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Check, X, Calendar, Edit2, MessageSquare, AlertTriangle, ShieldCheck, HelpCircle, Sparkles, Undo2, Award } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Calendar, Edit2, MessageSquare, AlertTriangle, ShieldCheck, HelpCircle, Sparkles, Undo2, Award, ChevronDown, ChevronUp } from 'lucide-react';
 import { calculateAttendance, getZoneColor } from '../utils/calculations';
 
 export default function TodayTab({
@@ -28,6 +28,7 @@ export default function TodayTab({
   setActiveDateStr,
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [expandedSlotId, setExpandedSlotId] = useState(null);
   const [editingSlotId, setEditingSlotId] = useState(null); // originalSlotId or overrideId
   const [noteSlotId, setNoteSlotId] = useState(null);
   const [noteText, setNoteText] = useState('');
@@ -648,212 +649,256 @@ export default function TodayTab({
               const isNext = slot.id === upNextSlotId;
 
               const isMarked = !!record;
-              const isEditing = editingSlotId === slot.id;
+              const isExpanded = expandedSlotId === slot.id;
               const isBunkOpen = bunkCalcOpenId === slot.id;
 
               return (
                 <div
                   key={slot.id}
-                  className={`bg-brand-card p-5 rounded-2xl border transition-all relative overflow-hidden shadow-warm ${
+                  className={`bg-brand-card rounded-2xl border transition-all relative overflow-hidden shadow-warm ${
                     isNow
                       ? 'border-status-info ring-1 ring-status-info/30 bg-status-infoTint/20'
                       : isNext
                       ? 'border-brand-primary/50 bg-brand-primaryTint/20'
-                      : 'border-brand-border'
+                      : isExpanded
+                      ? 'border-brand-primary/50 ring-1 ring-brand-primary/20'
+                      : 'border-brand-border hover:border-brand-border/90'
                   }`}
                 >
                   {/* Now / Up Next Label indicators */}
                   {isNow && (
-                    <span className="absolute top-0 right-0 bg-status-info text-white px-2.5 py-0.5 rounded-bl-lg font-black text-[9px] uppercase tracking-wider shadow-sm">
+                    <span className="absolute top-0 right-0 bg-status-info text-white px-2.5 py-0.5 rounded-bl-lg font-black text-[9px] uppercase tracking-wider shadow-sm z-10">
                       NOW
                     </span>
                   )}
                   {isNext && (
-                    <span className="absolute top-0 right-0 bg-brand-primary text-brand-primaryOn px-2.5 py-0.5 rounded-bl-lg font-black text-[9px] uppercase tracking-wider shadow-sm">
+                    <span className="absolute top-0 right-0 bg-brand-primary text-brand-primaryOn px-2.5 py-0.5 rounded-bl-lg font-black text-[9px] uppercase tracking-wider shadow-sm z-10">
                       UP NEXT
                     </span>
                   )}
 
-                  <div className="space-y-3.5">
-                    {/* Top Row: times and period */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
+                  {/* Header Row: Always visible, clean & clickable to expand/collapse */}
+                  <div
+                    onClick={() => setExpandedSlotId(isExpanded ? null : slot.id)}
+                    className="p-4 flex items-center justify-between gap-3 cursor-pointer select-none transition-colors hover:bg-brand-cardEl/40 active:bg-brand-cardEl/70"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0 shadow-sm"
+                        style={{ backgroundColor: sub?.color || '#6B6963' }}
+                      />
+                      <div className="min-w-0 space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <div
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: sub?.color || '#6B6963' }}
-                          />
-                          <h4 className="font-extrabold text-brand-text text-base leading-tight">
+                          <h4 className="font-extrabold text-brand-text text-sm md:text-base leading-tight truncate">
                             {sub?.name || 'Deleted Subject'}
                           </h4>
                           {slot.isModified && (
                             <span
-                              className="px-1.5 py-0.5 bg-status-infoTint text-status-info rounded text-[9px] font-black uppercase tracking-wide cursor-help"
+                              className="px-1.5 py-0.5 bg-status-infoTint text-status-info rounded text-[9px] font-black uppercase tracking-wide shrink-0"
                               title="Date-specific change override"
                             >
                               Modified
                             </span>
                           )}
+                          {record?.note && (
+                            <span
+                              className="text-[10px] text-brand-primary flex items-center gap-0.5 font-bold shrink-0"
+                              title={`Note: "${record.note}"`}
+                            >
+                              <MessageSquare size={11} />
+                            </span>
+                          )}
                         </div>
-                        <p className="text-xs text-brand-textMuted font-bold">
+                        <p className="text-xs text-brand-textMuted font-semibold truncate">
                           Period {slot.period} &middot; {formatDisplayTime(slot.start_time)} – {formatDisplayTime(slot.end_time)}
                         </p>
                       </div>
+                    </div>
 
-                      {/* Action buttons: Note & Substitute */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          onClick={() => openNoteDialog(slot, record?.note)}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all active:scale-95 ${
-                            record?.note
-                              ? 'bg-brand-primaryTint text-brand-primary border-brand-primary/30'
-                              : 'bg-brand-cardEl hover:bg-brand-border border-brand-border text-brand-textSec hover:text-brand-text'
+                    {/* Status Badge + Expand Indicator */}
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {isMarked ? (
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider border flex items-center gap-1 shadow-sm transition-transform ${
+                            record.status === 'present'
+                              ? 'bg-status-safeTint text-status-safe border-status-safe/30'
+                              : record.status === 'absent'
+                              ? 'bg-status-dangerTint text-status-danger border-status-danger/30'
+                              : 'bg-status-neutralTint text-status-neutral border-status-neutral/30'
                           }`}
-                          title="Add or edit note for this class"
                         >
-                          <MessageSquare size={12} className={record?.note ? 'text-brand-primary' : 'text-brand-textMuted'} />
-                          <span>{record?.note ? 'Edit Note' : 'Add Note'}</span>
-                        </button>
+                          {record.status === 'present' && <Check size={12} strokeWidth={3} />}
+                          {record.status === 'absent' && <X size={12} strokeWidth={3} />}
+                          <span>{record.status}</span>
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-brand-cardEl text-brand-textMuted border border-brand-border flex items-center gap-1">
+                          Unmarked
+                        </span>
+                      )}
 
-                        <button
-                          onClick={() => handleOpenReschedule(slot, 'modify')}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-cardEl hover:bg-brand-border border border-brand-border text-brand-textSec hover:text-brand-text text-[11px] font-bold transition-all active:scale-95"
-                          title="Substitute subject or change class time for today"
-                        >
-                          <Edit2 size={12} className="text-brand-primary" />
-                          <span>Substitute</span>
-                        </button>
+                      <div className={`text-brand-textMuted transition-transform duration-200 ${isExpanded ? 'rotate-180 text-brand-primary' : ''}`}>
+                        <ChevronDown size={18} />
+                      </div>
+                    </div>
+                  </div>
 
-                        {slot.isModified && (
+                  {/* Expanded Body: Revealed on tap */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 border-t border-brand-border/60 space-y-3.5 animate-fade-in bg-brand-cardEl/20">
+                      {/* Action tools row */}
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <button
-                            onClick={() => handleRemoveOverride(slot)}
-                            className="p-1.5 text-brand-textMuted hover:text-status-danger hover:bg-brand-cardEl rounded-lg transition-colors"
-                            title="Restore standard weekly class subject"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNoteDialog(slot, record?.note);
+                            }}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 ${
+                              record?.note
+                                ? 'bg-brand-primaryTint text-brand-primary border-brand-primary/30'
+                                : 'bg-brand-cardEl hover:bg-brand-border border-brand-border text-brand-textSec hover:text-brand-text'
+                            }`}
+                            title="Add or edit note for this class"
                           >
-                            <X size={14} />
+                            <MessageSquare size={13} className={record?.note ? 'text-brand-primary' : 'text-brand-textMuted'} />
+                            <span>{record?.note ? 'Edit Note' : 'Add Note'}</span>
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenReschedule(slot, 'modify');
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-brand-cardEl hover:bg-brand-border border border-brand-border text-brand-textSec hover:text-brand-text text-xs font-bold transition-all active:scale-95"
+                            title="Substitute subject or change class time for today"
+                          >
+                            <Edit2 size={13} className="text-brand-primary" />
+                            <span>Substitute</span>
+                          </button>
+
+                          {slot.isModified && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveOverride(slot);
+                              }}
+                              className="px-2 py-1.5 text-brand-textMuted hover:text-status-danger hover:bg-status-danger/10 border border-brand-border/60 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
+                              title="Restore standard weekly class subject"
+                            >
+                              <X size={13} />
+                              <span>Restore</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {isMarked && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnmark(slot);
+                            }}
+                            className="px-2.5 py-1.5 text-status-danger hover:bg-status-danger/10 border border-status-danger/30 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 active:scale-95 shrink-0"
+                            title="Uncheck / Reset slot back to unmarked"
+                          >
+                            <Undo2 size={12} />
+                            <span>Unmark</span>
                           </button>
                         )}
                       </div>
-                    </div>
 
-                    {/* Middle Row: Note Display Box */}
-                    {record?.note && (
-                      <div className="text-xs text-brand-text font-medium bg-brand-cardEl/90 p-2.5 rounded-xl border border-brand-border/60 flex items-start justify-between gap-2 shadow-sm">
-                        <div className="flex items-start gap-2">
-                          <MessageSquare size={13} className="shrink-0 text-brand-primary mt-0.5" />
-                          <span className="leading-relaxed">"{record.note}"</span>
-                        </div>
-                        <button
-                          onClick={() => openNoteDialog(slot, record.note)}
-                          className="text-brand-textMuted hover:text-brand-primary text-[10px] font-bold shrink-0 hover:underline"
-                        >
-                          Edit
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Bottom Row: Marking buttons */}
-                    <div className="pt-2 border-t border-brand-border/60">
-                      {!isMarked || isEditing ? (
-                        <div className="flex flex-col gap-2">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleMark(slot, 'present')}
-                              className="flex-1 py-2 rounded-xl bg-status-safeTint hover:bg-status-safe/20 border border-status-safe/30 text-status-safe text-xs font-bold transition-all active:scale-[0.97]"
-                            >
-                              Present
-                            </button>
-                            <button
-                              onClick={() => handleMark(slot, 'absent')}
-                              className="flex-1 py-2 rounded-xl bg-status-dangerTint hover:bg-status-danger/20 border border-status-danger/30 text-status-danger text-xs font-bold transition-all active:scale-[0.97]"
-                            >
-                              Absent
-                            </button>
-                            <button
-                              onClick={() => handleMark(slot, 'cancelled')}
-                              className="flex-1 py-2 rounded-xl bg-status-neutralTint hover:bg-status-neutral/20 border border-status-neutral/30 text-status-neutral text-xs font-bold transition-all active:scale-[0.97]"
-                            >
-                              Cancelled
-                            </button>
+                      {/* Note display if note exists */}
+                      {record?.note && (
+                        <div className="text-xs text-brand-text font-medium bg-brand-cardEl p-3 rounded-xl border border-brand-border/80 flex items-start justify-between gap-2 shadow-sm">
+                          <div className="flex items-start gap-2">
+                            <MessageSquare size={14} className="shrink-0 text-brand-primary mt-0.5" />
+                            <span className="leading-relaxed">"{record.note}"</span>
                           </div>
-
-                          <div className="flex justify-between items-center text-[10px] text-brand-textMuted font-bold">
-                            <button
-                              onClick={() => setBunkCalcOpenId(isBunkOpen ? null : slot.id)}
-                              className="hover:underline flex items-center gap-0.5 text-brand-primary"
-                            >
-                              <Sparkles size={11} /> {isBunkOpen ? 'Hide Bunk Calculator' : 'Should I bunk this?'}
-                            </button>
-
-                            {isEditing && (
-                              <div className="flex items-center gap-3">
-                                <button
-                                  onClick={() => handleUnmark(slot)}
-                                  className="text-status-danger hover:underline flex items-center gap-1 font-bold"
-                                  title="Remove mark and set back to unmarked"
-                                >
-                                  <Undo2 size={11} /> Uncheck Slot
-                                </button>
-                                <button
-                                  onClick={() => setEditingSlotId(null)}
-                                  className="text-brand-textMuted hover:text-brand-text"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between gap-3 text-xs">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
-                                record.status === 'present'
-                                  ? 'bg-status-safeTint text-status-safe border-status-safe/30'
-                                  : record.status === 'absent'
-                                  ? 'bg-status-dangerTint text-status-danger border-status-danger/30'
-                                  : 'bg-status-neutralTint text-status-neutral border-status-neutral/30'
-                              }`}
-                            >
-                              {record.status}
-                            </span>
-                            <span className="text-[10px] text-brand-textMuted font-semibold">
-                              marked {new Date(record.marked_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => openNoteDialog(slot, record.note)}
-                              className="p-1.5 text-brand-textMuted hover:text-brand-primary hover:bg-brand-cardEl transition-colors rounded-lg flex items-center gap-1 text-[11px] font-semibold"
-                              title="Add Note"
-                            >
-                              <MessageSquare size={13} />
-                            </button>
-                            <button
-                              onClick={() => setEditingSlotId(slot.id)}
-                              className="p-1.5 text-brand-textMuted hover:text-brand-text hover:bg-brand-cardEl transition-colors rounded-lg flex items-center gap-1 text-[11px] font-semibold"
-                              title="Edit Status"
-                            >
-                              <Edit2 size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleUnmark(slot)}
-                              className="px-2 py-1 text-brand-textMuted hover:text-status-danger hover:bg-status-danger/10 text-[10px] font-bold rounded-lg transition-colors border border-brand-border/60 flex items-center gap-1"
-                              title="Uncheck / Reset slot back to unmarked"
-                            >
-                              <Undo2 size={11} />
-                              <span>Unmark</span>
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNoteDialog(slot, record.note);
+                            }}
+                            className="text-brand-textMuted hover:text-brand-primary text-[11px] font-bold shrink-0 hover:underline"
+                          >
+                            Edit
+                          </button>
                         </div>
                       )}
 
-                      {/* Render Bunk Calc nested if open */}
-                      {isBunkOpen && !isMarked && renderBunkCalculator(slot)}
+                      {/* Main Attendance Marking Buttons */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] font-extrabold text-brand-textMuted uppercase tracking-wider block">
+                          Mark Attendance
+                        </span>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMark(slot, 'present');
+                            }}
+                            className={`py-2.5 px-3 rounded-xl border font-black text-xs transition-all active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-sm ${
+                              record?.status === 'present'
+                                ? 'bg-status-safe text-white border-status-safe shadow-status-safe/25 ring-2 ring-status-safe/30'
+                                : 'bg-status-safeTint hover:bg-status-safe/20 border-status-safe/30 text-status-safe'
+                            }`}
+                          >
+                            <Check size={14} strokeWidth={3} />
+                            <span>Present</span>
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMark(slot, 'absent');
+                            }}
+                            className={`py-2.5 px-3 rounded-xl border font-black text-xs transition-all active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-sm ${
+                              record?.status === 'absent'
+                                ? 'bg-status-danger text-white border-status-danger shadow-status-danger/25 ring-2 ring-status-danger/30'
+                                : 'bg-status-dangerTint hover:bg-status-danger/20 border-status-danger/30 text-status-danger'
+                            }`}
+                          >
+                            <X size={14} strokeWidth={3} />
+                            <span>Absent</span>
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMark(slot, 'cancelled');
+                            }}
+                            className={`py-2.5 px-3 rounded-xl border font-black text-xs transition-all active:scale-[0.97] flex items-center justify-center gap-1.5 shadow-sm ${
+                              record?.status === 'cancelled'
+                                ? 'bg-status-neutral text-white border-status-neutral shadow-status-neutral/25 ring-2 ring-status-neutral/30'
+                                : 'bg-status-neutralTint hover:bg-status-neutral/20 border-status-neutral/30 text-status-neutral'
+                            }`}
+                          >
+                            <span>Cancelled</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bunk Calculator Toggle & Component */}
+                      <div className="pt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBunkCalcOpenId(isBunkOpen ? null : slot.id);
+                          }}
+                          className="hover:underline flex items-center gap-1 text-xs font-bold text-brand-primary"
+                        >
+                          <Sparkles size={13} />
+                          <span>{isBunkOpen ? 'Hide Bunk Impact Calculator' : 'Should I bunk this? (Attendance Impact)'}</span>
+                        </button>
+
+                        {isBunkOpen && (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            {renderBunkCalculator(slot)}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
