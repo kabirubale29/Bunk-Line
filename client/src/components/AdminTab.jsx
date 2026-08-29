@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { ShieldCheck, UserPlus, Trash2, Shield, User, AlertCircle, CheckCircle2, RefreshCw, KeyRound } from 'lucide-react';
+import { ShieldCheck, UserPlus, Trash2, Shield, User, AlertCircle, CheckCircle2, RefreshCw, KeyRound, Lock, Eye, EyeOff, X, AlertTriangle } from 'lucide-react';
 
-export default function AdminTab() {
+export default function AdminTab({ currentAdminEmail = 'ubalekabir29@gmail.com' }) {
   const [allowedUsers, setAllowedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -13,6 +13,13 @@ export default function AdminTab() {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState('user');
   const [newNote, setNewNote] = useState('');
+
+  // Two-Step Verification Modal State
+  const [targetUserToDelete, setTargetUserToDelete] = useState(null);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [verifyingDelete, setVerifyingDelete] = useState(false);
+  const [deleteErrorMsg, setDeleteErrorMsg] = useState('');
 
   // Fetch allowed users
   const fetchAllowedUsers = async () => {
@@ -91,6 +98,11 @@ export default function AdminTab() {
 
   // Toggle user role (User <-> Admin)
   const handleToggleRole = async (userItem) => {
+    if (userItem.email === 'ubalekabir29@gmail.com') {
+      alert('The primary Admin account cannot be demoted.');
+      return;
+    }
+
     const nextRole = userItem.role === 'admin' ? 'user' : 'admin';
     if (!confirm(`Are you sure you want to change ${userItem.email}'s role to ${nextRole.toUpperCase()}?`)) {
       return;
@@ -118,30 +130,58 @@ export default function AdminTab() {
     }
   };
 
-  // Remove allowed user
-  const handleRemoveUser = async (userItem) => {
-    if (!confirm(`Are you sure you want to revoke access for ${userItem.email}? They will no longer be able to log in.`)) {
+  // Open Two-Step Verification Modal
+  const handleInitiateDelete = (userItem) => {
+    if (userItem.email === 'ubalekabir29@gmail.com') {
+      alert('The primary Admin account cannot be deleted.');
       return;
     }
+    setTargetUserToDelete(userItem);
+    setAdminPassword('');
+    setDeleteErrorMsg('');
+  };
+
+  // Execute Password-Verified Deletion
+  const handleConfirmPasswordDelete = async (e) => {
+    e.preventDefault();
+    if (!targetUserToDelete || !adminPassword) return;
+
+    setVerifyingDelete(true);
+    setDeleteErrorMsg('');
 
     try {
+      // 1. Re-authenticate admin with Supabase to verify password
+      const { error: authErr } = await supabase.auth.signInWithPassword({
+        email: currentAdminEmail || 'ubalekabir29@gmail.com',
+        password: adminPassword
+      });
+
+      if (authErr) {
+        throw new Error('Incorrect admin password. Access revocation cancelled.');
+      }
+
+      // 2. Perform deletion
       const { error: rpcErr } = await supabase.rpc('delete_allowed_user', {
-        target_id: userItem.id
+        target_id: targetUserToDelete.id
       });
 
       if (rpcErr) {
         const { error } = await supabase
           .from('allowed_users')
           .delete()
-          .eq('id', userItem.id);
+          .eq('id', targetUserToDelete.id);
         if (error) throw error;
       }
 
-      setSuccessMsg(`Revoked access for ${userItem.email}`);
+      setSuccessMsg(`Successfully revoked access for ${targetUserToDelete.email}`);
+      setTargetUserToDelete(null);
+      setAdminPassword('');
       fetchAllowedUsers();
     } catch (err) {
-      console.error('Error removing allowed user:', err);
-      setErrorMsg(err.message || 'Failed to remove user access.');
+      console.error('Error during password-verified deletion:', err);
+      setDeleteErrorMsg(err.message || 'Failed to verify password.');
+    } finally {
+      setVerifyingDelete(false);
     }
   };
 
@@ -300,18 +340,120 @@ export default function AdminTab() {
                   </p>
                 </div>
 
-                <button
-                  onClick={() => handleRemoveUser(item)}
-                  className="p-2 text-brand-textMuted hover:text-status-danger hover:bg-status-danger/10 rounded-xl transition-colors shrink-0"
-                  title="Revoke Access"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {item.email === 'ubalekabir29@gmail.com' ? (
+                  <span className="px-2.5 py-1 text-[10px] font-extrabold text-brand-primary bg-brand-primary/10 rounded-xl border border-brand-primary/30 flex items-center gap-1 shrink-0">
+                    <Lock size={12} />
+                    <span>Protected Admin</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleInitiateDelete(item)}
+                    className="px-3 py-1.5 text-xs font-bold text-status-danger bg-status-danger/10 hover:bg-status-danger/20 border border-status-danger/30 rounded-xl transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
+                    title="Revoke access with admin password verification"
+                  >
+                    <Trash2 size={14} />
+                    <span>Revoke</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Two-Step Verification Admin Password Modal */}
+      {targetUserToDelete && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-brand-card w-full max-w-md rounded-3xl border border-brand-border shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-brand-border bg-status-danger/10 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-status-danger">
+                <div className="p-2 bg-status-danger/20 rounded-xl">
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-brand-text text-base leading-tight">Confirm Access Revocation</h3>
+                  <p className="text-[11px] text-brand-textMuted font-bold">Two-step security verification</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTargetUserToDelete(null)}
+                className="p-1.5 rounded-full hover:bg-brand-cardEl text-brand-textMuted hover:text-brand-text transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleConfirmPasswordDelete} className="p-6 space-y-4">
+              <div className="p-3.5 bg-brand-cardEl rounded-2xl border border-brand-border space-y-1">
+                <span className="text-[10px] font-extrabold text-brand-textMuted uppercase tracking-wider block">
+                  Target Account
+                </span>
+                <p className="font-black text-brand-text text-sm break-all">
+                  {targetUserToDelete.email}
+                </p>
+                <p className="text-[11px] text-status-danger font-medium">
+                  ⚠️ This user will be immediately blocked and won't be able to log in.
+                </p>
+              </div>
+
+              {deleteErrorMsg && (
+                <div className="p-3 bg-status-danger/10 border border-status-danger/30 rounded-xl text-status-danger text-xs font-bold flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{deleteErrorMsg}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-brand-textMuted uppercase tracking-wider">
+                  Enter Admin Password to Confirm
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoFocus
+                    placeholder="Enter your admin password"
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-brand-cardEl border border-brand-border text-brand-text text-xs font-medium focus:outline-none focus:border-status-danger transition-colors"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-brand-text"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-brand-textMuted">
+                  Please enter the password for <span className="font-bold text-brand-text">{currentAdminEmail}</span>.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setTargetUserToDelete(null)}
+                  className="py-2.5 px-4 rounded-xl bg-brand-cardEl hover:bg-brand-border border border-brand-border text-brand-textSec font-bold text-xs transition-all active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={verifyingDelete || !adminPassword}
+                  className="py-2.5 px-4 rounded-xl bg-status-danger hover:bg-opacity-90 text-white font-extrabold text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 size={14} />
+                  <span>{verifyingDelete ? 'Verifying...' : 'Revoke Access'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

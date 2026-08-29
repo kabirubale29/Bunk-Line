@@ -1285,7 +1285,7 @@ export default function App() {
         )}
 
         {activeTab === 'admin' && isAdmin && (
-          <AdminTab />
+          <AdminTab currentAdminEmail={session?.user?.email} />
         )}
       </main>
 
