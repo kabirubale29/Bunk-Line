@@ -60,6 +60,12 @@ export default function App() {
   const [waitingWorker, setWaitingWorker] = useState(null);
   const [showLogoModal, setShowLogoModal] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
 
   // Listen for Service Worker update available
   useEffect(() => {
@@ -171,7 +177,10 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowPasswordResetModal(true);
+      }
       if (session) {
         const allowed = await verifyAllowedUserAndRole(session.user.email);
         if (!allowed) {
@@ -1058,6 +1067,41 @@ export default function App() {
     setIsAdmin(false);
   };
 
+  const handleUpdateNewPassword = async (e) => {
+    e.preventDefault();
+    if (!resetNewPassword) return;
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError('Passwords do not match.');
+      return;
+    }
+    if (resetNewPassword.length < 6) {
+      setResetError('Password must be at least 6 characters.');
+      return;
+    }
+
+    setResetLoading(true);
+    setResetError('');
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: resetNewPassword
+      });
+      if (error) throw error;
+      setResetSuccess('Password updated successfully! Redirecting...');
+      setTimeout(() => {
+        setShowPasswordResetModal(false);
+        setResetNewPassword('');
+        setResetConfirmPassword('');
+        setResetSuccess('');
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to update password:', err);
+      setResetError(err.message || 'Failed to update password.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   // Automatically open Admin Tab for Admin accounts upon login
   useEffect(() => {
     if (isAdmin && activeTab === 'today') {
@@ -1098,6 +1142,72 @@ export default function App() {
         onSignOutCurrent={handleSignOutCurrent}
         onSignOutAll={handleSignOutAll}
       />
+
+      {/* Password Reset Recovery Modal */}
+      {showPasswordResetModal && (
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-brand-card w-full max-w-md rounded-3xl border border-brand-border shadow-2xl overflow-hidden p-6 space-y-4">
+            <div className="text-center space-y-1">
+              <h3 className="text-xl font-black text-brand-text">Set New Password</h3>
+              <p className="text-xs text-brand-textMuted font-medium">
+                Enter your new password below to complete your account recovery.
+              </p>
+            </div>
+
+            {resetError && (
+              <div className="p-3 bg-status-danger/10 border border-status-danger/30 rounded-xl text-status-danger text-xs font-bold">
+                {resetError}
+              </div>
+            )}
+
+            {resetSuccess && (
+              <div className="p-3 bg-status-safe/10 border border-status-safe/30 rounded-xl text-status-safe text-xs font-bold">
+                {resetSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateNewPassword} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-extrabold text-brand-textMuted uppercase tracking-wider mb-1">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="At least 6 characters"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-brand-cardEl border border-brand-border text-brand-text text-xs font-medium focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-extrabold text-brand-textMuted uppercase tracking-wider mb-1">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Repeat new password"
+                  value={resetConfirmPassword}
+                  onChange={(e) => setResetConfirmPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-brand-cardEl border border-brand-border text-brand-text text-xs font-medium focus:outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="w-full py-3 bg-brand-primary text-white font-extrabold text-xs rounded-xl shadow-lg hover:bg-brand-primaryHover transition-all active:scale-95 disabled:opacity-50"
+                >
+                  {resetLoading ? 'Updating Password...' : 'Save New Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       
       {/* PWA New Update Toast Banner */}
       {swUpdateAvailable && (

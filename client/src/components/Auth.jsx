@@ -8,14 +8,40 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [message, setMessage] = useState('');
   const [showLogoModal, setShowLogoModal] = useState(false);
 
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading(true);
+    setErrorMsg('');
+    setMessage('');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin
+      });
+      if (error) throw error;
+      setMessage('Password reset link sent! Check your email inbox (and spam folder).');
+    } catch (err) {
+      console.error('Password reset error:', err);
+      setErrorMsg(err.message || 'Failed to send password reset email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAuth = async (e) => {
     e.preventDefault();
+    if (isForgotPassword) {
+      return handleResetPassword(e);
+    }
+
     setLoading(true);
     setErrorMsg('');
     setMessage('');
@@ -140,29 +166,46 @@ export default function Auth() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-brand-textSec uppercase tracking-wider mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  className="w-full px-4 py-3 rounded-lg bg-brand-cardEl border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors pr-10 text-base"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-brand-textSec transition-colors"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            {!isForgotPassword && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-brand-textSec uppercase tracking-wider">
+                    Password
+                  </label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setErrorMsg('');
+                        setMessage('');
+                      }}
+                      className="text-xs font-bold text-brand-primary hover:underline"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    className="w-full px-4 py-3 rounded-lg bg-brand-cardEl border border-brand-border text-brand-text focus:outline-none focus:border-brand-primary transition-colors pr-10 text-base"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-brand-textSec transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div>
@@ -173,6 +216,8 @@ export default function Auth() {
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-brand-text border-t-transparent rounded-full animate-spin"></div>
+              ) : isForgotPassword ? (
+                <span>Send Password Reset Link</span>
               ) : isSignUp ? (
                 <>
                   <UserPlus size={20} />
@@ -188,18 +233,32 @@ export default function Auth() {
           </div>
         </form>
 
-        <div className="text-center pt-2">
-          <button
-            type="button"
-            onClick={() => {
-              setIsSignUp(!isSignUp);
-              setErrorMsg('');
-              setMessage('');
-            }}
-            className="text-sm font-medium text-brand-primary hover:underline transition-all"
-          >
-            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-          </button>
+        <div className="text-center pt-2 space-y-2">
+          {isForgotPassword ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsForgotPassword(false);
+                setErrorMsg('');
+                setMessage('');
+              }}
+              className="text-sm font-bold text-brand-primary hover:underline transition-all"
+            >
+              ← Back to Sign In
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrorMsg('');
+                setMessage('');
+              }}
+              className="text-sm font-medium text-brand-primary hover:underline transition-all"
+            >
+              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </button>
+          )}
         </div>
       </div>
     </div>
