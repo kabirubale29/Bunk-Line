@@ -99,43 +99,52 @@ export default function App() {
   const verifyAllowedUserAndRole = async (userEmail) => {
     if (!userEmail) return false;
     const cleanEmail = userEmail.trim().toLowerCase();
+    const coreAdminEmails = ['ubalekabir29@gmail.com', 'kabirubale0358@gmail.com'];
+
+    let rpcVerified = false;
+    let isAllowedByRpc = false;
 
     try {
       const { data: isAllowed, error: rpcErr } = await supabase.rpc('is_email_allowed', { check_email: cleanEmail });
       if (!rpcErr && typeof isAllowed === 'boolean') {
-        if (!isAllowed) return false;
+        rpcVerified = true;
+        isAllowedByRpc = isAllowed;
 
         // Check if admin role
-        const { data: myRole, error: roleErr } = await supabase.rpc('get_my_role');
-        if (!roleErr && myRole === 'admin') {
+        if (cleanEmail === 'ubalekabir29@gmail.com') {
           setIsAdmin(true);
         } else {
-          const { data: userRow } = await supabase
-            .from('allowed_users')
-            .select('role')
-            .eq('email', cleanEmail)
-            .maybeSingle();
-          if (userRow?.role === 'admin') setIsAdmin(true);
+          const { data: myRole, error: roleErr } = await supabase.rpc('get_my_role');
+          if (!roleErr && myRole === 'admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
         }
-        return true;
       }
     } catch (err) {
       console.warn('Supabase allowed_users check failed, falling back:', err);
     }
 
-    // Fallback to environment variable allowed emails whitelist if configured
+    if (rpcVerified) {
+      if (coreAdminEmails.includes(cleanEmail)) {
+        return true;
+      }
+      return isAllowedByRpc;
+    }
+
+    // Fallback to environment variable ONLY if database RPC was completely unreachable
+    if (coreAdminEmails.includes(cleanEmail)) {
+      if (cleanEmail === 'ubalekabir29@gmail.com') setIsAdmin(true);
+      return true;
+    }
+
     const allowedEmailsEnv = import.meta.env.VITE_ALLOWED_EMAILS;
-    const adminEmails = ['ubalekabir29@gmail.com'];
     if (!allowedEmailsEnv) {
-      if (adminEmails.includes(cleanEmail)) setIsAdmin(true);
       return true;
     }
     const allowedList = allowedEmailsEnv.split(',').map(item => item.trim().toLowerCase());
-    const isEnvAllowed = allowedList.includes(cleanEmail);
-    if (isEnvAllowed && adminEmails.includes(cleanEmail)) {
-      setIsAdmin(true);
-    }
-    return isEnvAllowed;
+    return allowedList.includes(cleanEmail);
   };
 
   // Auth Subscription
