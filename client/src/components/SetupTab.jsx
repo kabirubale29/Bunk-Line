@@ -92,6 +92,17 @@ export default function SetupTab({
       alert('Please select a subject for the timetable slot.');
       return;
     }
+
+    // Guard against duplicate slot on same weekday with same period or start_time
+    const duplicate = scheduleSlots.find(
+      (s) => s.weekday === slotDay && (s.start_time === slotStart || s.period === Number(slotPeriod))
+    );
+    if (duplicate) {
+      const dupSub = subjects.find(sub => sub.id === duplicate.subject_id);
+      alert(`Conflict: A class (${dupSub ? dupSub.name : 'Class'}) is already scheduled on ${slotDay} for Period ${duplicate.period} (${duplicate.start_time} - ${duplicate.end_time}). Please choose another period/time or edit the existing slot.`);
+      return;
+    }
+
     onAddSlot({
       subject_id: slotSubId,
       weekday: slotDay,

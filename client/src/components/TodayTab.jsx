@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Check, X, Calendar, Edit2, MessageSquare, AlertTriangle, ShieldCheck, HelpCircle, Sparkles, Undo2, Award, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, X, Calendar, Edit2, MessageSquare, AlertTriangle, ShieldCheck, HelpCircle, Sparkles, Undo2, Award, ChevronDown, ChevronUp, Bell, BellRing } from 'lucide-react';
 import { calculateAttendance, getZoneColor } from '../utils/calculations';
+import { triggerDailyQuickMarkNotifications, sendClassQuickMarkNotification } from '../utils/notificationService';
 
 export default function TodayTab({
   subjects = [],
@@ -26,6 +27,7 @@ export default function TodayTab({
   minAttendancePct = 60,
   activeDateStr,
   setActiveDateStr,
+  userId = null,
 }) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [expandedSlotId, setExpandedSlotId] = useState(null);
@@ -586,6 +588,43 @@ export default function TodayTab({
         )}
       </div>
 
+      {/* Lock Screen Quick-Mark Action Card */}
+      {!isHoliday && todaySlots.length > 0 && (
+        <div className="bg-brand-card p-3.5 rounded-2xl border border-brand-border flex items-center justify-between gap-3 shadow-warm">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-2 bg-brand-primary/10 text-brand-primary rounded-xl shrink-0">
+              <BellRing size={16} />
+            </div>
+            <div className="min-w-0">
+              <h5 className="font-extrabold text-xs text-brand-text truncate">Lock Screen Quick-Mark</h5>
+              <p className="text-[10px] text-brand-textMuted font-semibold truncate">Mark classes without opening the app</p>
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              const count = await triggerDailyQuickMarkNotifications({
+                todaySlots,
+                records,
+                subjects,
+                date: activeDateStr,
+                termId: settings.current_term_id,
+                userId
+              });
+              if (count > 0) {
+                alert(`Sent ${count} class notification${count > 1 ? 's' : ''} with [✅ Present] and [❌ Absent] buttons to your phone's lock screen & notification shade!`);
+              } else {
+                alert('All classes for this date are already marked, or notification permission was not granted.');
+              }
+            }}
+            className="px-3 py-2 bg-brand-primary/10 hover:bg-brand-primary/20 border border-brand-primary/30 text-brand-primary rounded-xl text-xs font-black transition-all active:scale-95 shrink-0 flex items-center gap-1.5"
+            title="Send interactive notifications with Present/Absent buttons to your phone"
+          >
+            <Bell size={13} />
+            <span>Send to Phone</span>
+          </button>
+        </div>
+      )}
+
       {/* Undo snackbar container */}
       {undoableBulkMark && (
         <div className="p-3 bg-brand-cardEl border border-brand-primary/30 rounded-xl flex items-center justify-between text-xs font-bold text-brand-text animate-bounce">
@@ -775,6 +814,29 @@ export default function TodayTab({
                           >
                             <Edit2 size={13} className="text-brand-primary" />
                             <span>Substitute</span>
+                          </button>
+
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const success = await sendClassQuickMarkNotification({
+                                slot,
+                                subject: sub,
+                                date: activeDateStr,
+                                termId: settings.current_term_id,
+                                userId
+                              });
+                              if (success) {
+                                alert(`Sent ${sub?.name || 'Class'} to your phone's lock screen!`);
+                              } else {
+                                alert('Please allow notification permissions in your browser.');
+                              }
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-brand-cardEl hover:bg-brand-border border border-brand-border text-brand-textSec hover:text-brand-text text-xs font-bold transition-all active:scale-95"
+                            title="Send quick-mark notification for this class to your phone"
+                          >
+                            <Bell size={13} className="text-brand-primary" />
+                            <span>Send to Lock Screen</span>
                           </button>
 
                           {slot.isModified && (

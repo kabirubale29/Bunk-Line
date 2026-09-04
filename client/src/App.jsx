@@ -79,6 +79,31 @@ export default function App() {
     return () => window.removeEventListener('swUpdateAvailable', handleSWUpdate);
   }, []);
 
+  // Listen for background quick-mark notifications from Service Worker
+  useEffect(() => {
+    const handleServiceWorkerMessage = (event) => {
+      if (event.data && event.data.type === 'NOTIFICATION_ATTENDANCE_MARKED') {
+        const markedRecord = event.data.record;
+        if (markedRecord) {
+          setAttendanceRecords((prev) => {
+            const idx = prev.findIndex(r => r.id === markedRecord.id || (r.date === markedRecord.date && (markedRecord.override_id ? r.override_id === markedRecord.override_id : (markedRecord.slot_id && r.slot_id === markedRecord.slot_id))));
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = markedRecord;
+              return updated;
+            }
+            return [...prev, markedRecord];
+          });
+          if (userId) {
+            processSyncQueue(supabase, userId);
+          }
+        }
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', handleServiceWorkerMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
+  }, [userId]);
+
   // Monitor network status
   useEffect(() => {
     const handleOnline = () => {
@@ -527,14 +552,15 @@ export default function App() {
   const handleMarkAttendance = async ({ date, slot_id, override_id, subject_id, status }) => {
     const existingIndex = attendanceRecords.findIndex(r => 
       r.date === date && 
-      (slot_id ? r.slot_id === slot_id : r.override_id === override_id)
+      (override_id ? (r.override_id === override_id || (slot_id && r.slot_id === slot_id)) : (slot_id && r.slot_id === slot_id))
     );
 
     const recordPayload = {
       term_id: settings.current_term_id,
+      user_id: userId,
       date,
-      slot_id,
-      override_id,
+      slot_id: slot_id || null,
+      override_id: override_id || null,
       subject_id,
       status,
       marked_at: new Date().toISOString(),
@@ -563,6 +589,7 @@ export default function App() {
     const recordsToInsert = unmarkedSlots.map(slot => ({
       id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
       term_id: settings.current_term_id,
+      user_id: userId,
       date,
       slot_id: slot.isExtra ? null : (slot.override_id ? slot.original_slot_id : slot.id),
       override_id: slot.override_id || null,
@@ -600,7 +627,7 @@ export default function App() {
   const handleAddNote = async (date, slot_id, override_id, subject_id, note) => {
     const existingIndex = attendanceRecords.findIndex(r => 
       r.date === date && 
-      (slot_id ? r.slot_id === slot_id : r.override_id === override_id)
+      (override_id ? (r.override_id === override_id || (slot_id && r.slot_id === slot_id)) : (slot_id && r.slot_id === slot_id))
     );
 
     if (existingIndex === -1) {
@@ -608,9 +635,10 @@ export default function App() {
       const newRecord = {
         id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
         term_id: settings.current_term_id,
+        user_id: userId,
         date,
-        slot_id,
-        override_id,
+        slot_id: slot_id || null,
+        override_id: override_id || null,
         subject_id,
         status: 'present',
         note,
@@ -676,15 +704,62 @@ export default function App() {
     await saveCache(CACHE_KEYS.SCHEDULE_OVERRIDES, updated);
 
     await enqueueSync('override/create', payload);
+
+    // If an existing attendance record was already marked for this date & slot,
+    // seamlessly migrate the mark to the newly substituted subject!
+    if (overrideData.override_type === 'modify' && overrideData.original_slot_id && overrideData.subject_id) {
+      const recIndex = attendanceRecords.findIndex(
+        r => r.date === overrideData.date && r.slot_id === overrideData.original_slot_id
+      );
+      if (recIndex !== -1) {
+        const updatedRec = {
+          ...attendanceRecords[recIndex],
+          user_id: userId,
+          subject_id: overrideData.subject_id,
+          override_id: payload.id,
+          edited: true
+        };
+        const newRecords = [...attendanceRecords];
+        newRecords[recIndex] = updatedRec;
+        setAttendanceRecords(newRecords);
+        await saveCache(CACHE_KEYS.ATTENDANCE_RECORDS, newRecords);
+        await enqueueSync('attendance/upsert', updatedRec);
+      }
+    }
+
     processSyncQueue(supabase, userId);
   };
 
   const handleDeleteOverride = async (overrideId) => {
+    const override = scheduleOverrides.find(o => o.id === overrideId);
     const filtered = scheduleOverrides.filter(o => o.id !== overrideId);
     setScheduleOverrides(filtered);
     await saveCache(CACHE_KEYS.SCHEDULE_OVERRIDES, filtered);
 
     await enqueueSync('override/delete', { id: overrideId });
+
+    // If an attendance record was bound to this override, revert its subject back to the base timetable subject!
+    if (override && override.original_slot_id) {
+      const baseSlot = scheduleSlots.find(s => s.id === override.original_slot_id);
+      const recIndex = attendanceRecords.findIndex(
+        r => r.date === override.date && (r.override_id === overrideId || r.slot_id === override.original_slot_id)
+      );
+      if (recIndex !== -1 && baseSlot) {
+        const revertedRec = {
+          ...attendanceRecords[recIndex],
+          user_id: userId,
+          subject_id: baseSlot.subject_id,
+          override_id: null,
+          edited: true
+        };
+        const newRecords = [...attendanceRecords];
+        newRecords[recIndex] = revertedRec;
+        setAttendanceRecords(newRecords);
+        await saveCache(CACHE_KEYS.ATTENDANCE_RECORDS, newRecords);
+        await enqueueSync('attendance/upsert', revertedRec);
+      }
+    }
+
     processSyncQueue(supabase, userId);
   };
 
@@ -726,6 +801,15 @@ export default function App() {
 
   // Timetable edits
   const handleAddSlot = async (slot) => {
+    // Guard against duplicate slots on same weekday with same period or start_time
+    const isDuplicate = scheduleSlots.some(
+      s => s.weekday === slot.weekday && (s.start_time === slot.start_time || s.period === Number(slot.period))
+    );
+    if (isDuplicate) {
+      console.warn('Duplicate slot prevented in handleAddSlot:', slot);
+      return;
+    }
+
     const payload = {
       id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 9),
       term_id: settings.current_term_id,
@@ -1336,6 +1420,7 @@ export default function App() {
             minAttendancePct={settings.minAttendancePct}
             activeDateStr={activeDateStr}
             setActiveDateStr={setActiveDateStr}
+            userId={userId}
           />
         )}
 
